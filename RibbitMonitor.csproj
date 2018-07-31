@@ -5,4 +5,14 @@
     <TargetFramework>netcoreapp2.1</TargetFramework>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="MimeKit" Version="2.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Ribbit.NET">
+      <HintPath>..\Ribbit.NET\Ribbit.NET\bin\Debug\netcoreapp2.1\Ribbit.NET.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>
