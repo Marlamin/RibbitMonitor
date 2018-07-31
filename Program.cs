@@ -34,20 +34,22 @@ namespace RibbitMonitor
                         if(currentSummary[newEntry.Key] != newEntry.Value)
                         {
                             // Sequence number changed!
-                            Console.WriteLine("Sequence number for " + newEntry.Key + " changed!");
+                            Console.WriteLine("[" + DateTime.Now + "] Sequence number for " + newEntry.Key + " changed!");
 
                             // TODO: Retrieve new thing
                             Console.WriteLine(client.Request("v1/products/" + newEntry.Key.Item1 + "/" + newEntry.Key.Item2).ToString());
+
+                            // Work around sometimes getting incomplete results, just reuse existing lib and update
+                            currentSummary[newEntry.Key] = newEntry.Value;
                         }
                     }
                     else
                     {
                         // End point is new!
-                        Console.WriteLine("New endpoint found: " + newEntry.Key);
+                        Console.WriteLine("[" + DateTime.Now + "] New endpoint found: " + newEntry.Key);
+                        currentSummary[newEntry.Key] = newEntry.Value;
                     }
                 }
-
-                currentSummary = newSummary;
 
                 // Sleep 5 seconds 
                 System.Threading.Thread.Sleep(5000);
