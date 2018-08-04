@@ -22,7 +22,7 @@ namespace RibbitMonitor
 
             var currentSummary = ParseSummary(client.Request("v1/summary").ToString());
 
-            Console.Write("Monitoring..");
+            Console.WriteLine("Monitoring..");
             while (isMonitoring)
             {
                 var newSummary = ParseSummary(client.Request("v1/summary").ToString());
@@ -34,10 +34,10 @@ namespace RibbitMonitor
                         if(currentSummary[newEntry.Key] != newEntry.Value)
                         {
                             // Sequence number changed!
-                            Console.WriteLine("[" + DateTime.Now + "] Sequence number for " + newEntry.Key + " changed!");
+                            Console.WriteLine("[" + DateTime.Now + "] Sequence number for " + newEntry.Key + " changed from " + currentSummary[newEntry.Key] + " to " + newEntry.Value);
 
                             // TODO: Retrieve new thing
-                            Console.WriteLine(client.Request("v1/products/" + newEntry.Key.Item1 + "/" + newEntry.Key.Item2).ToString());
+                            //Console.WriteLine(client.Request("v1/products/" + newEntry.Key.Item1 + "/" + newEntry.Key.Item2).ToString());
 
                             // Work around sometimes getting incomplete results, just reuse existing lib and update
                             currentSummary[newEntry.Key] = newEntry.Value;
@@ -70,7 +70,7 @@ namespace RibbitMonitor
                 }
                 else
                 {
-                    summaryDictionary.Add((splitLine[0], splitLine[2]), int.Parse(splitLine[1]));
+                    summaryDictionary.Add((splitLine[0], splitLine[2].Trim()), int.Parse(splitLine[1]));
                 }
             }
             return summaryDictionary;
