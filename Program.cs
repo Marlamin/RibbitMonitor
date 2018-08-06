@@ -1,7 +1,10 @@
 ﻿using Ribbit.Constants;
 using Ribbit.Protocol;
+using Ribbit.Parsing;
 using System;
 using System.Collections.Generic;
+using System.Text;
+using System.IO;
 
 namespace RibbitMonitor
 {
@@ -18,9 +21,49 @@ namespace RibbitMonitor
                 Environment.Exit(0);
             };
 
-            var client = new Client(Region.US);
+            if (!Directory.Exists("cache"))
+            {
+                Directory.CreateDirectory("cache");
+            }
 
-            var currentSummary = ParseSummary(client.Request("v1/summary").ToString());
+            var client = new Client(Region.US);
+            var req = client.Request("v1/summary");
+            var currentSummary = ParseSummary(req.ToString());
+            foreach (var entry in currentSummary)
+            {
+                if(entry.Value == 0)
+                {
+                    Console.WriteLine("Sequence number for " + entry.Key + " is 0, skipping..");
+                    continue;
+                }
+
+                Console.WriteLine(entry.Key.Item1);
+
+                var endpoint = "";
+
+                if (entry.Key.Item2 == "version" || entry.Key.Item2 == "cdn")
+                {
+                    endpoint = entry.Key.Item2 + "s";
+                }
+                else if(entry.Key.Item2 == "bgdl")
+                {
+                    endpoint = entry.Key.Item2;
+                }
+
+                try
+                {
+                    var subRequest = client.Request("v1/products/" + entry.Key.Item1 + "/" + endpoint);
+                    var filename = entry.Key.Item2 + "-" + entry.Key.Item1 + "-" + entry.Value + ".bmime";
+                    File.WriteAllText(Path.Combine("cache", filename), subRequest.message.ToString());
+                }
+                catch(FormatException e)
+                {
+                    Console.WriteLine(entry.Key + " is forked");
+                }
+                
+                // Play nice, wait 250ms
+                System.Threading.Thread.Sleep(250);
+            }
 
             Console.WriteLine("Monitoring..");
             while (isMonitoring)
@@ -36,8 +79,29 @@ namespace RibbitMonitor
                             // Sequence number changed!
                             Console.WriteLine("[" + DateTime.Now + "] Sequence number for " + newEntry.Key + " changed from " + currentSummary[newEntry.Key] + " to " + newEntry.Value);
 
-                            // TODO: Retrieve new thing
-                            //Console.WriteLine(client.Request("v1/products/" + newEntry.Key.Item1 + "/" + newEntry.Key.Item2).ToString());
+                            var endpoint = "";
+
+                            if (newEntry.Key.Item2 == "version" || newEntry.Key.Item2 == "cdn")
+                            {
+                                endpoint = newEntry.Key.Item2 + "s";
+                            }
+                            else if (newEntry.Key.Item2 == "bgdl")
+                            {
+                                endpoint = newEntry.Key.Item2;
+                            }
+
+                            try
+                            {
+                                var subRequest = client.Request("v1/products/" + newEntry.Key.Item1 + "/" + endpoint);
+                                var filename = newEntry.Key.Item2 + "-" + newEntry.Key.Item1 + "-" + newEntry.Value + ".bmime";
+                                File.WriteAllText(Path.Combine("cache", filename), subRequest.message.ToString());
+                            }
+                            catch (FormatException e)
+                            {
+                                Console.WriteLine(newEntry.Key + " is forked");
+                            }
+
+                            // TODO: Diff new thing
 
                             // Work around sometimes getting incomplete results, just reuse existing lib and update
                             currentSummary[newEntry.Key] = newEntry.Value;
@@ -59,18 +123,17 @@ namespace RibbitMonitor
         private static Dictionary<(string, string), int> ParseSummary(string summary)
         {
             var summaryDictionary = new Dictionary<(string, string), int>();
-            foreach(var line in summary.Split("\n"))
+            var parsedFile = new BPSV(summary);
+
+            foreach(var entry in parsedFile.data)
             {
-                if (string.IsNullOrEmpty(line) || line.StartsWith("Product") || line.StartsWith("#")) continue;
-                
-                var splitLine = line.Split("|");
-                if (string.IsNullOrEmpty(splitLine[2]))
+                if (string.IsNullOrEmpty(entry[2]))
                 {
-                    summaryDictionary.Add((splitLine[0], "version"), int.Parse(splitLine[1]));
+                    summaryDictionary.Add((entry[0], "version"), int.Parse(entry[1]));
                 }
                 else
                 {
-                    summaryDictionary.Add((splitLine[0], splitLine[2].Trim()), int.Parse(splitLine[1]));
+                    summaryDictionary.Add((entry[0], entry[2].Trim()), int.Parse(entry[1]));
                 }
             }
             return summaryDictionary;
