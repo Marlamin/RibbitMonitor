@@ -3,7 +3,6 @@ using Ribbit.Protocol;
 using Ribbit.Parsing;
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
 
 namespace RibbitMonitor
@@ -65,6 +64,8 @@ namespace RibbitMonitor
                 System.Threading.Thread.Sleep(250);
             }
 
+            TelegramClient.SendMessage("Monitoring started! :D");
+
             Console.WriteLine("Monitoring..");
             while (isMonitoring)
             {
@@ -77,6 +78,7 @@ namespace RibbitMonitor
                         if(currentSummary[newEntry.Key] != newEntry.Value)
                         {
                             // Sequence number changed!
+                            TelegramClient.SendMessage("Sequence number for " + newEntry.Key + " changed from " + currentSummary[newEntry.Key] + " to " + newEntry.Value);
                             Console.WriteLine("[" + DateTime.Now + "] Sequence number for " + newEntry.Key + " changed from " + currentSummary[newEntry.Key] + " to " + newEntry.Value);
 
                             var endpoint = "";
