@@ -60,17 +60,27 @@ namespace RibbitMonitor
                     Console.WriteLine(entry.Key + " is forked");
                 }
                 
-                // Play nice, wait 250ms
-                System.Threading.Thread.Sleep(250);
+                // Play nice, wait 100ms
+                System.Threading.Thread.Sleep(100);
             }
-
-            TelegramClient.SendMessage("Monitoring started! :D");
 
             Console.WriteLine("Monitoring..");
             while (isMonitoring)
             {
-                var newSummary = ParseSummary(client.Request("v1/summary").ToString());
-                
+                var newSummaryString = client.Request("v1/summary").ToString();
+                var newSummary = new Dictionary<(string, string), int>();
+
+                try
+                {
+                    newSummary = ParseSummary(newSummaryString);
+                }
+                catch(Exception e)
+                {
+                    Console.WriteLine(newSummaryString);
+                    TelegramClient.SendMessage("Parsing summary failed, send help: " + e.Message);
+                    continue;
+                }
+
                 foreach(var newEntry in newSummary)
                 {
                     if (currentSummary.ContainsKey(newEntry.Key))
