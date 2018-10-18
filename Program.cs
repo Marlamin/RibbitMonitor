@@ -10,23 +10,20 @@ namespace RibbitMonitor
     class Program
     {
         private static bool isMonitoring = true;
+        private static Dictionary<(string, string), string> CachedFiles = new Dictionary<(string, string), string>();
+
         static void Main(string[] args)
         {
-            Console.CancelKeyPress += delegate
-            {
-                // TODO: Clean up stuff
-                isMonitoring = false;
-                Console.WriteLine("Goodbye!");
-                Environment.Exit(0);
-            };
-
             if (!Directory.Exists("cache"))
             {
                 Directory.CreateDirectory("cache");
             }
 
+            Console.WriteLine("Grabbing updates since last run..");
+
             var client = new Client(Region.US);
             var req = client.Request("v1/summary");
+            
             var currentSummary = ParseSummary(req.ToString());
             foreach (var entry in currentSummary)
             {
@@ -35,8 +32,6 @@ namespace RibbitMonitor
                     Console.WriteLine("Sequence number for " + entry.Key + " is 0, skipping..");
                     continue;
                 }
-
-                Console.WriteLine(entry.Key.Item1);
 
                 var endpoint = "";
 
@@ -51,20 +46,35 @@ namespace RibbitMonitor
 
                 try
                 {
-                    var subRequest = client.Request("v1/products/" + entry.Key.Item1 + "/" + endpoint);
                     var filename = entry.Key.Item2 + "-" + entry.Key.Item1 + "-" + entry.Value + ".bmime";
-                    File.WriteAllText(Path.Combine("cache", filename), subRequest.message.ToString());
+
+                    Response subRequest;
+
+                    if(File.Exists(Path.Combine("cache", filename)))
+                    {
+                        subRequest = new Response(new MemoryStream(File.ReadAllBytes(Path.Combine("cache", filename))));
+                    }
+                    else
+                    {
+                        Console.WriteLine(entry.Key.Item1);
+
+                        subRequest = client.Request("v1/products/" + entry.Key.Item1 + "/" + endpoint);
+                        
+                        File.WriteAllText(Path.Combine("cache", filename), subRequest.message.ToString());
+
+                        System.Threading.Thread.Sleep(100);
+                    }
+
+                    CachedFiles[entry.Key] = subRequest.ToString();
                 }
-                catch(FormatException e)
+                catch (FormatException e)
                 {
                     Console.WriteLine(entry.Key + " is forked");
                 }
-                
-                // Play nice, wait 100ms
-                System.Threading.Thread.Sleep(100);
             }
 
             Console.WriteLine("Monitoring..");
+
             while (isMonitoring)
             {
                 var newSummaryString = client.Request("v1/summary").ToString();
@@ -84,11 +94,10 @@ namespace RibbitMonitor
                 {
                     if (currentSummary.ContainsKey(newEntry.Key))
                     {
-                        if(currentSummary[newEntry.Key] != newEntry.Value)
+                        if(newEntry.Value > currentSummary[newEntry.Key])
                         {
-                            // Sequence number changed!
-                            TelegramClient.SendMessage("Sequence number for " + newEntry.Key + " changed from " + currentSummary[newEntry.Key] + " to " + newEntry.Value);
-                            Console.WriteLine("[" + DateTime.Now + "] Sequence number for " + newEntry.Key + " changed from " + currentSummary[newEntry.Key] + " to " + newEntry.Value);
+                            TelegramClient.SendMessage("Sequence number for " + newEntry.Key + " increased from " + currentSummary[newEntry.Key] + " to " + newEntry.Value);
+                            Console.WriteLine("[" + DateTime.Now + "] Sequence number for " + newEntry.Key + " increased from " + currentSummary[newEntry.Key] + " to " + newEntry.Value);
 
                             var endpoint = "";
 
@@ -106,27 +115,25 @@ namespace RibbitMonitor
                                 var subRequest = client.Request("v1/products/" + newEntry.Key.Item1 + "/" + endpoint);
                                 var filename = newEntry.Key.Item2 + "-" + newEntry.Key.Item1 + "-" + newEntry.Value + ".bmime";
                                 File.WriteAllText(Path.Combine("cache", filename), subRequest.message.ToString());
+
+                                DiffFile(CachedFiles[newEntry.Key], subRequest.ToString());
                             }
-                            catch (FormatException e)
+                            catch (Exception e)
                             {
-                                Console.WriteLine(newEntry.Key + " is forked");
+                                TelegramClient.SendMessage("Error during diff: " + e.Message);
+                                Console.WriteLine("Error during diff: " + e.Message);
                             }
 
-                            // TODO: Diff new thing
-
-                            // Work around sometimes getting incomplete results, just reuse existing lib and update
                             currentSummary[newEntry.Key] = newEntry.Value;
                         }
                     }
                     else
                     {
-                        // End point is new!
                         Console.WriteLine("[" + DateTime.Now + "] New endpoint found: " + newEntry.Key);
                         currentSummary[newEntry.Key] = newEntry.Value;
                     }
                 }
 
-                // Sleep 5 seconds 
                 System.Threading.Thread.Sleep(5000);
             }
         }
@@ -148,6 +155,34 @@ namespace RibbitMonitor
                 }
             }
             return summaryDictionary;
+        }
+
+        private static string DiffFile(string oldContent, string newContent)
+        {
+            var oldFile = new BPSV(oldContent);
+            var newFile = new BPSV(newContent);
+
+            foreach(var oldEntry in oldFile.data)
+            {
+                var regionMatch = false;
+
+                foreach(var newEntry in newFile.data)
+                {
+                    // Region matches
+                    if(oldEntry[0] == newEntry[0])
+                    {
+                        regionMatch = true;
+                        // diff each field
+                    }
+                }
+
+                if(regionMatch == false)
+                {
+                    // new region
+                }
+            }
+
+            return "";
         }
     }
 }
