@@ -76,7 +76,6 @@ namespace RibbitMonitor
                 }
                 catch(Exception e)
                 {
-                    Console.WriteLine(newSummaryString);
                     TelegramClient.SendMessage("Parsing summary failed, send help: " + e.Message);
                     continue;
                 }
