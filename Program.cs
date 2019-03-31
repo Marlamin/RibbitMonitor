@@ -9,7 +9,7 @@ namespace RibbitMonitor
 {
     class Program
     {
-        private static bool isMonitoring = true;
+        private static bool isMonitoring = false;
         private static Dictionary<(string, string), string> CachedFiles = new Dictionary<(string, string), string>();
 
         static void Main(string[] args)
@@ -73,7 +73,11 @@ namespace RibbitMonitor
                 }
             }
 
-            Console.WriteLine("Monitoring..");
+            if(args.Length > 0 && args[0] == "monitor")
+            {
+                isMonitoring = true;
+                Console.WriteLine("Monitoring..");
+            }
 
             while (isMonitoring)
             {
@@ -116,7 +120,7 @@ namespace RibbitMonitor
                                 var filename = newEntry.Key.Item2 + "-" + newEntry.Key.Item1 + "-" + newEntry.Value + ".bmime";
                                 File.WriteAllText(Path.Combine("cache", filename), subRequest.message.ToString());
 
-                                DiffFile(CachedFiles[newEntry.Key], subRequest.ToString());
+                                //DiffFile(CachedFiles[newEntry.Key], subRequest.ToString());
                             }
                             catch (Exception e)
                             {
@@ -130,6 +134,7 @@ namespace RibbitMonitor
                     else
                     {
                         Console.WriteLine("[" + DateTime.Now + "] New endpoint found: " + newEntry.Key);
+                        TelegramClient.SendMessage("New endpoint found: " + newEntry.Key);
                         currentSummary[newEntry.Key] = newEntry.Value;
                     }
                 }
