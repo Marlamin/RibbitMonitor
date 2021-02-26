@@ -59,6 +59,8 @@ namespace RibbitMonitor
                     }
                     else
                     {
+                        System.Threading.Thread.Sleep(100);
+
                         Console.WriteLine(entry.Key.Item1);
 
                         subRequest = client.Request("v1/products/" + entry.Key.Item1 + "/" + endpoint);
@@ -68,9 +70,14 @@ namespace RibbitMonitor
                             Directory.CreateDirectory(Path.Combine("cache", entry.Key.Item1));
                         }
 
-                        File.WriteAllText(Path.Combine("cache", entry.Key.Item1, filename), subRequest.message.ToString());
-
-                        System.Threading.Thread.Sleep(50);
+                        if(subRequest.message.ToString().Contains("## seqn = " + entry.Value))
+                        {
+                            File.WriteAllText(Path.Combine("cache", entry.Key.Item1, filename), subRequest.message.ToString());
+                        }
+                        else
+                        {
+                            Console.WriteLine("Retrieved Ribbit message for " + entry.Key.Item1 + " is old, not saving to disk..");
+                        }
                     }
 
                     CachedFiles[entry.Key] = subRequest.ToString();
