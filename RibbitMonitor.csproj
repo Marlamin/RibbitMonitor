@@ -8,13 +8,13 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="2.1.1" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="2.1.1" />
-    <PackageReference Include="MimeKit" Version="2.0.5" />
+    <PackageReference Include="MimeKit" Version="2.15.1" />
     <PackageReference Include="Telegram.Bot" Version="14.9.0" />
   </ItemGroup>
 
   <ItemGroup>
     <Reference Include="Ribbit.NET">
-      <HintPath>..\Ribbit.NET\Ribbit.NET\bin\Debug\netcoreapp2.1\Ribbit.NET.dll</HintPath>
+      <HintPath>..\Ribbit.NET\Ribbit.NET\bin\Debug\netstandard2.0\Ribbit.NET.dll</HintPath>
     </Reference>
   </ItemGroup>
 
