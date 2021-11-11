@@ -24,9 +24,19 @@ namespace RibbitMonitor
             var client = new Client(Region.US);
             var req = client.Request("v1/summary");
 
+            if (!req.IsValid())
+            {
+                Console.WriteLine("!!! Summary failed verification, retrying..");
+                req = client.Request("v1/summary");
+
+                if (!req.IsValid())
+                    throw new Exception("Failed to get verified summary!");
+            }
+
+            File.WriteAllBytes(Path.Combine("cache", "latestsummary.bmime"), req.byteContent);
+
             var summaryString = req.ToString();
             var currentSummary = ParseSummary(summaryString);
-            File.WriteAllText(Path.Combine("cache", "latestsummary.bmime"), summaryString);
 
             foreach (var entry in currentSummary)
             {
@@ -64,6 +74,17 @@ namespace RibbitMonitor
                         Console.WriteLine(entry.Key.Item1);
 
                         subRequest = client.Request("v1/products/" + entry.Key.Item1 + "/" + endpoint);
+                        if (!subRequest.IsValid())
+                        {
+                            Console.WriteLine("!!! Failed to verify v1/products/" + entry.Key.Item1 + ", retrying..");
+                            subRequest = client.Request("v1/products/" + entry.Key.Item1 + "/" + endpoint);
+
+                            if (!subRequest.IsValid())
+                            {
+                                Console.WriteLine("!!! Failed to verify v1/products/" + entry.Key.Item1 + ", skipping!");
+                                continue;
+                            }
+                        }
 
                         if (!Directory.Exists(Path.Combine("cache", entry.Key.Item1)))
                         {
@@ -72,11 +93,11 @@ namespace RibbitMonitor
 
                         if(subRequest.message.ToString().Contains("## seqn = " + entry.Value))
                         {
-                            File.WriteAllText(Path.Combine("cache", entry.Key.Item1, filename), subRequest.message.ToString());
+                            File.WriteAllBytes(Path.Combine("cache", entry.Key.Item1, filename), subRequest.byteContent);
                         }
                         else
                         {
-                            Console.WriteLine("Retrieved Ribbit message for " + entry.Key.Item1 + " is old, not saving to disk..");
+                            Console.WriteLine("Retrieved Ribbit message for " + entry.Key.Item1 + " does not match expected seqn, not saving to disk..");
                         }
                     }
 
@@ -172,6 +193,12 @@ namespace RibbitMonitor
 
             foreach (var entry in parsedFile.data)
             {
+                if(entry.Length != 3)
+                {
+                    Console.WriteLine("Summary is cut off: " + summary);
+                    return summaryDictionary;
+                }
+
                 if (string.IsNullOrEmpty(entry[2]))
                 {
                     summaryDictionary.Add((entry[0], "version"), int.Parse(entry[1]));
